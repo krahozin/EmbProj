@@ -123,8 +123,8 @@ void setup() {
   lcd.setCursor(0, 1);
   lcd.print("Initializing...");
 
-  // Serial
-  Serial.begin(9600);
+  Serial.begin(115200); // Основной порт USB 
+  Serial1.begin(115200);
   Serial.setTimeout(100);
 
   // Calibrate compass zero heading
@@ -167,45 +167,30 @@ void loop() {
       break;
   }
 }
-
-// ===== COMMAND PARSING =====
 void readCommandFromSerial() {
-  if (Serial.available() > 0) {
-    String command = Serial.readStringUntil('\n');
+  if (Serial1.available() > 0) {
+    String command = Serial1.readStringUntil('\n');
+    Serial.println(command);
     command.trim();
+
+   
 
     if (command.startsWith("dist:")) {
       String numberPart = command.substring(5);
       targetDistance = numberPart.toFloat();
 
       Serial.println("========================================");
-      Serial.print(">> COMMAND: dist:");
+      Serial.print(">> COMMAND (from ESP): dist:");
       Serial.println(targetDistance);
-      Serial.print(">> Target Distance: ");
-      Serial.print(targetDistance);
-      Serial.println(" cm");
 
-      // Reset encoder counters
       encoderRightPulses = 0;
       encoderLeftPulses = 0;
-      Serial.println(">> Encoder counters reset to 0");
 
-      // Calculate target pulses for debugging
       unsigned long targetPulses = (unsigned long)(abs(targetDistance) * PULSES_PER_CM_L);
-      Serial.print(">> Target pulses: ");
-      Serial.println(targetPulses);
-
-      // Start driving
-      Serial.print(">> STATE CHANGE: ");
-      if (currentState == IDLE) Serial.print("IDLE");
-      else if (currentState == DRIVING) Serial.print("DRIVING");
-      else if (currentState == TURNING) Serial.print("TURNING");
-      Serial.println(" --> DRIVING");
 
       currentState = DRIVING;
       lastUpdateTime = millis();
 
-      // Update LCD immediately
       lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print("MODE: DRIVING");
@@ -213,62 +198,35 @@ void readCommandFromSerial() {
       lcd.print("Starting...");
 
       if (targetDistance >= 0) {
-        Serial.println(">> Motor Direction: FORWARD");
         startForwardDrive();
       } else {
-        Serial.println(">> Motor Direction: BACKWARD");
         startBackwardDrive();
       }
-
-      Serial.println(">> Motor started!");
-      Serial.println("========================================");
     }
+
     else if (command.startsWith("deg:")) {
       String numberPart = command.substring(4);
       float angle = numberPart.toFloat();
-
-      Serial.println("========================================");
-      Serial.print(">> COMMAND: deg:");
-      Serial.println(angle);
-
-      // Normalize angle to 0-360
       angle = fmod(angle, 360.0f);
       if (angle < 0) angle += 360.0f;
 
       targetHeading = angle;
-      Serial.print(">> Target Heading: ");
-      Serial.print(targetHeading);
-      Serial.println(" degrees");
-
-      // Start turning
-      Serial.print(">> STATE CHANGE: ");
-      if (currentState == IDLE) Serial.print("IDLE");
-      else if (currentState == DRIVING) Serial.print("DRIVING");
-      else if (currentState == TURNING) Serial.print("TURNING");
-      Serial.println(" --> TURNING");
 
       currentState = TURNING;
       lastUpdateTime = millis();
-
-      Serial.println(">> Turning mode activated!");
-      Serial.println("========================================");
     }
+
     else if (command.startsWith("lcd:")) {
       String message = command.substring(4);
-
-      Serial.println("========================================");
-      Serial.print(">> COMMAND: lcd:");
-      Serial.println(message);
-      Serial.println(">> Displaying custom message on LCD");
-      Serial.println("========================================");
-
       displayCustomMessage(message);
     }
+
     else {
-      Serial.println("Invalid command! Use 'dist:<number>', 'deg:<number>', or 'lcd:<message>'");
+      Serial.println("Invalid command! Use dist:, deg:, lcd:");
     }
   }
 }
+
 
 // ===== STATE PROCESSING: DRIVING =====
 void processDriving() {
